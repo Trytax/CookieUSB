@@ -13,3 +13,18 @@ type File struct {
 	CompressionMethod byte
 	Data              []byte
 }
+
+// Config : Struct for configuration file
+type Config struct {
+	Header           string
+	PasswordLength   int16
+	Password         string
+	IVLength         byte
+	IV               []byte
+	KeyBits          int16
+	PublicKeyLength  int16
+	PublicKey        []byte
+	PrivateKeyLength int16
+	PrivateKey       []byte
+	IsEncrypted      byte
+}
