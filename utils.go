@@ -17,14 +17,14 @@ const (
 func Debug(message string, level int) {
 	switch level {
 	case Success:
-		fmt.Println(color.GreenString("[+]"), message)
+		fmt.Println(color.HiGreenString("[+]"), message)
 	case Error:
-		fmt.Println(color.RedString("[-]"), message)
+		fmt.Println(color.HiRedString("[-]"), message)
 	case Warning:
-		fmt.Println(color.YellowString("[!]"), message)
+		fmt.Println(color.HiYellowString("[!]"), message)
 	case Task:
-		fmt.Println(color.CyanString("[~]"), message)
+		fmt.Println(color.HiCyanString("[~]"), message)
 	case Normal:
-		fmt.Println(color.MagentaString("[*]"), message)
+		fmt.Println(color.HiMagentaString("[*]"), message)
 	}
 }
