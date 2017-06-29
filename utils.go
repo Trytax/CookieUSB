@@ -6,6 +6,7 @@ import (
 	"github.com/fatih/color"
 )
 
+// Levels
 const (
 	Success = iota
 	Error
@@ -14,6 +15,7 @@ const (
 	Normal
 )
 
+// Debug : Print message with a color
 func Debug(message string, level int) {
 	switch level {
 	case Success:

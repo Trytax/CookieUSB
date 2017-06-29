@@ -1,15 +1,18 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/base64"
-
 	"fmt"
-
-	"net/http"
-
 	"io/ioutil"
-
+	"log"
+	"net/http"
 	"os"
+	"os/exec"
+	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/fatih/color"
 )
@@ -19,7 +22,8 @@ const (
 	version = "1.0.0"
 )
 
-func checkForUpdates() (bool, string) {
+// CheckForUpdates : Check if the program is up-to-date
+func CheckForUpdates() (bool, string) {
 	response, err := http.Get("https://raw.githubusercontent.com/Trytax/CookieUSB/master/version.txt")
 	if err != nil {
 		Debug("Error when trying to check for updates", Error)
@@ -33,7 +37,75 @@ func checkForUpdates() (bool, string) {
 	return true, version
 }
 
+// https://github.com/deepakjois/gousbdrivedetector/blob/master/usbdrivedetector_linux.go
+
+// Detect : Return a list of USB drives
+func Detect() ([]string, error) {
+	var drives []string
+	driveMap := make(map[string]bool)
+	dfPattern := regexp.MustCompile("^(\\/[^ ]+)[^%]+%[ ]+(.+)$")
+
+	cmd := "df"
+	out, err := exec.Command(cmd).Output()
+
+	if err != nil {
+		log.Printf("Error calling df: %s", err)
+	}
+
+	s := bufio.NewScanner(bytes.NewReader(out))
+	for s.Scan() {
+		line := s.Text()
+		if dfPattern.MatchString(line) {
+			device := dfPattern.FindStringSubmatch(line)[1]
+			rootPath := dfPattern.FindStringSubmatch(line)[2]
+
+			if ok := isUSBStorage(device); ok {
+				driveMap[rootPath] = true
+			}
+		}
+	}
+
+	for k := range driveMap {
+		_, err := os.Open(k)
+		if err == nil {
+			drives = append(drives, k)
+		}
+	}
+
+	return drives, nil
+}
+
+// isUSBStorage : Check if it is a USB Storage
+func isUSBStorage(device string) bool {
+	deviceVerifier := "ID_USB_DRIVER=usb-storage"
+	cmd := "udevadm"
+	args := []string{"info", "-q", "property", "-n", device}
+	out, err := exec.Command(cmd, args...).Output()
+
+	if err != nil {
+		log.Printf("Error checking device %s: %s", device, err)
+		return false
+	}
+
+	if strings.Contains(string(out), deviceVerifier) {
+		return true
+	}
+
+	return false
+}
+
+// Contains : Check if the string is in the array
+func Contains(s string, list []string) bool {
+	for _, e := range list {
+		if e == s {
+			return true
+		}
+	}
+	return false
+}
+
 func main() {
+	fmt.Print("\033[2J") // Clear console
 	// Print logo
 	color.Set(color.FgHiYellow)
 	l, _ := base64.StdEncoding.DecodeString(logoB64)
@@ -43,11 +115,31 @@ func main() {
 	Debug("Created by Trytax https://github.com/Trytax/CookieUSB", Normal)
 	Debug("Checking for updates...", Task)
 
-	tf, b := checkForUpdates()
+	tf, b := CheckForUpdates()
 	if tf {
 		Debug("You are up-to-date. Version="+version, Success)
 	} else {
 		Debug("There is a new version ! ("+b+"). Please download it on: https://github.com/Trytax/CookieUSB", Error)
 		os.Exit(0)
 	}
+
+	Debug("Getting USB drives...", Task)
+	drives, err := Detect()
+	if err == nil {
+		Debug(strconv.Itoa(len(drives))+" USB devices found:", Success)
+		for _, d := range drives {
+			fmt.Println(d)
+		}
+	} else {
+		Debug("Error when getting USB drives", Error)
+		os.Exit(0)
+	}
+
+	var input string
+	for !Contains(input, drives) {
+		Debug("Please enter a USB drive path:", Normal)
+		fmt.Scanln(&input)
+	}
+
+	Debug("Checking if the USB drive is encrypted...", Task)
 }
