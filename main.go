@@ -20,7 +20,7 @@ const (
 )
 
 func checkForUpdates() (bool, string) {
-	response, err := http.Get("https://raw.githubusercontent.com/Trytax/CookieUSB/master/main.go")
+	response, err := http.Get("https://raw.githubusercontent.com/Trytax/CookieUSB/master/version.txt")
 	if err != nil {
 		Debug("Error when trying to check for updates", Error)
 	}
