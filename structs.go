@@ -26,5 +26,5 @@ type Config struct {
 	PublicKey        []byte
 	PrivateKeyLength int16
 	PrivateKey       []byte
-	IsEncrypted      byte
+	IsEncrypted      bool
 }
