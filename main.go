@@ -197,7 +197,6 @@ func main() {
 		}
 		Debug("Hashed password : "+string(hashed), Success)
 		var userConfig Config
-		userConfig.PasswordLength = int16(len(hashed))
 		key := xor.XorKey{Key: ReverseByteArray(XorKeyBA)}
 		userConfig.Password = string(key.Encrypt(hashed))
 
@@ -207,7 +206,6 @@ func main() {
 			Debug("Impossible to generate a IV", Error)
 			os.Exit(0)
 		}
-		userConfig.IVLength = byte(len(iv))
 		userConfig.IV = iv
 		Debug("B64-IV : "+base64.StdEncoding.EncodeToString(iv), Success)
 
@@ -257,14 +255,17 @@ func main() {
 			os.Exit(0)
 		}
 		Debug("The keys are encrypted", Success)
-		userConfig.PublicKeyLength = int16(len(encryptedPbKey))
+		/*generateLog := false
+		Debug("Do you want to generate a log file ? (y/n)", Normal)
+		fmt.Scanln(&input)
+		if input == "y" {
+			generateLog = true
+		}*/
 		userConfig.PublicKey = encryptedPbKey
-		userConfig.PrivateKeyLength = int16(len(encryptedPrKey))
 		userConfig.PrivateKey = encryptedPrKey
-		userConfig.IsEncrypted = false
+		userConfig.IsEncrypted = true
 		key = xor.XorKey{Key: XorKeyBA}
 		userConfig.Header = string(key.Encrypt([]byte("CookieUSB")))
-		fmt.Println(userConfig)
 		convertedConfig, err := SerializeConfig(userConfig)
 		if err != nil {
 			Debug("Error when serializing Config", Error)

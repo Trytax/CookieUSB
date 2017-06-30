@@ -51,7 +51,7 @@ func GetConfig(path string) (Config, error) {
 	if _, err := os.Stat(path + "/" + configName); os.IsNotExist(err) {
 		return Config{}, errors.New("The file doesn't exist")
 	}
-	return DeserializeConfig(path)
+	return DeserializeConfig(path + "/" + configName)
 }
 
 func GenerateIV() ([]byte, error) {
