@@ -9,6 +9,9 @@ const (
 	EncryptionNormal  = 0xA9
 	EncryptionHard    = 0xBA
 	EncryptionExtreme = 0x90
+	CompressionNone   = 0xF2
+	CompressionZIP    = 0x88
+	CompressionLZMA   = 0xC7
 )
 
 func DecryptFile(file File, rsaKeys rsa.RSAKeys) {
@@ -21,4 +24,8 @@ func DecryptConfig(config Config, aesKeys aes.AESKey) {
 	decryptedPbKey, _ := aesKeys.Decrypt(config.PublicKey)
 	config.PublicKey = decryptedPbKey
 	config.PrivateKey = decryptedPrKey
+}
+
+func EncryptUSB(path string, rsaKeys rsa.RSAKeys, encryptionMethod byte, compressionMethod byte, rawPassword string) {
+
 }

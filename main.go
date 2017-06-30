@@ -20,6 +20,7 @@ import (
 	"crypto/rsa"
 
 	"./crypto/aes"
+	cryptoRSA "./crypto/rsa"
 	"./crypto/xor"
 	"github.com/fatih/color"
 	"github.com/nbutton23/zxcvbn-go"
@@ -140,6 +141,7 @@ func main() {
 		Debug("Please enter a USB drive path:", Normal)
 		fmt.Scanln(&input)
 	}
+	usbPath := input
 
 	Debug("Checking if the USB drive is encrypted...", Task)
 	config, err := GetConfig(input)
@@ -278,6 +280,49 @@ func main() {
 			os.Exit(0)
 		}
 		Debug("The config file is created !", Success)
+		var encryptionLevel byte = 255
+		fmt.Println(encryptionLevel)
+		for {
+			Debug("Please enter the encryption level (Normal=0/Hard=1/Extreme=2)", Normal)
+			var input string
+			fmt.Scanln(&input)
+			i, err := strconv.ParseInt(input, 10, 32)
+			if err == nil {
+				switch int(i) {
+				case 0:
+					encryptionLevel = EncryptionNormal
+				case 1:
+					encryptionLevel = EncryptionHard
+				case 2:
+					encryptionLevel = EncryptionExtreme
+				}
+				if encryptionLevel != 255 {
+					break
+				}
+			}
+		}
+		var compressionMethod byte = 255
+		for {
+			Debug("Please enter the compression method (None=0/GZIP=1/LZMA=2)", Normal)
+			var input string
+			fmt.Scanln(&input)
+			i, err := strconv.ParseInt(input, 10, 32)
+			if err == nil {
+				switch int(i) {
+				case 0:
+					compressionMethod = CompressionNone
+				case 1:
+					compressionMethod = CompressionZIP
+				case 2:
+					compressionMethod = CompressionLZMA
+				}
+				if compressionMethod != 255 {
+					break
+				}
+			}
+		}
 		Debug("Encrypting your files...", Task)
+		rsaKeyPair := cryptoRSA.RSAKeys{Bits: int(userConfig.KeyBits), PrivateKey: rsaKeys, PublicKey: &rsaKeys.PublicKey}
+		EncryptUSB(usbPath, rsaKeyPair, encryptionLevel, compressionMethod, rawPassword)
 	}
 }
