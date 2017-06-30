@@ -1,7 +1,14 @@
 package main
 
 import (
+	"crypto/rand"
+	"errors"
 	"fmt"
+	"os"
+
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 
 	"github.com/fatih/color"
 )
@@ -38,4 +45,41 @@ func ReverseByteArray(data []byte) []byte {
 		reversed[i], reversed[j] = data[j], data[i]
 	}
 	return reversed
+}
+
+func GetConfig(path string) (Config, error) {
+	if _, err := os.Stat(path + "/" + configName); os.IsNotExist(err) {
+		return Config{}, errors.New("The file doesn't exist")
+	}
+	return DeserializeConfig(path)
+}
+
+func GenerateIV() ([]byte, error) {
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	return b, err
+}
+
+// Contains : Check if the string is in the array
+func Contains(s string, list []string) bool {
+	for _, e := range list {
+		if e == s {
+			return true
+		}
+	}
+	return false
+}
+
+func GetPEMKey(key *rsa.PrivateKey) (privateKey string, publicKey string, err error) {
+	prKeyBlock := pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(key),
+	}
+	pbKey := key.PublicKey
+	pbKeyDer, err := x509.MarshalPKIXPublicKey(&pbKey)
+	pbKeyBlock := pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: pbKeyDer,
+	}
+	return string(pem.EncodeToMemory(&prKeyBlock)), string(pem.EncodeToMemory(&pbKeyBlock)), err
 }

@@ -7,7 +7,7 @@ type XorKey struct {
 
 // Encrypt : Encrypt the data
 func (this *XorKey) Encrypt(data []byte) []byte {
-	encrypted := make([]byte, len(data)+1)
+	encrypted := make([]byte, len(data))
 	for i := 0; i < len(encrypted); i++ {
 		encrypted[i] = data[i] ^ this.Key[i%len(this.Key)]
 	}

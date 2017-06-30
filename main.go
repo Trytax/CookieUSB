@@ -3,10 +3,13 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -14,12 +17,12 @@ import (
 	"strconv"
 	"strings"
 
-	"errors"
-
-	"crypto/sha256"
+	"crypto/rsa"
 
 	"./crypto/aes"
+	"./crypto/xor"
 	"github.com/fatih/color"
+	"github.com/nbutton23/zxcvbn-go"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -101,23 +104,6 @@ func isUSBStorage(device string) bool {
 	return false
 }
 
-// Contains : Check if the string is in the array
-func Contains(s string, list []string) bool {
-	for _, e := range list {
-		if e == s {
-			return true
-		}
-	}
-	return false
-}
-
-func GetConfig(path string) (Config, error) {
-	if _, err := os.Stat(path + "/" + configName); os.IsNotExist(err) {
-		return Config{}, errors.New("The file doesn't exist")
-	}
-	return DeserializeConfig(path)
-}
-
 func main() {
 	fmt.Print("\033[2J") // Clear console
 	// Print logo
@@ -134,7 +120,7 @@ func main() {
 		Debug("You are up-to-date. Version="+version, Success)
 	} else {
 		Debug("There is a new version ! ("+b+"). Please download it on: https://github.com/Trytax/CookieUSB", Error)
-		os.Exit(0)
+		//os.Exit(0)
 	}
 
 	Debug("Getting USB drives...", Task)
@@ -191,5 +177,106 @@ func main() {
 				os.Exit(0)
 			}
 		}
+		var rawPassword string
+		for {
+			Debug("Please enter a password:", Normal)
+			fmt.Scanln(&rawPassword)
+			strength := zxcvbn.PasswordStrength(rawPassword, nil)
+			if strength.Score <= 2 {
+				Debug("Your password is weak !", Error)
+			} else {
+				Debug("Your password is strong", Success)
+				break
+			}
+		}
+		Debug("Hashing password...", Task)
+		hashed, err := bcrypt.GenerateFromPassword([]byte(rawPassword), 12)
+		if err != nil {
+			Debug("Impossible to hash your password", Error)
+			os.Exit(0)
+		}
+		Debug("Hashed password : "+string(hashed), Success)
+		var userConfig Config
+		userConfig.PasswordLength = int16(len(hashed))
+		key := xor.XorKey{Key: ReverseByteArray(XorKeyBA)}
+		userConfig.Password = string(key.Encrypt(hashed))
+
+		Debug("Generating IV...", Task)
+		iv, err := GenerateIV()
+		if err != nil {
+			Debug("Impossible to generate a IV", Error)
+			os.Exit(0)
+		}
+		userConfig.IVLength = byte(len(iv))
+		userConfig.IV = iv
+		Debug("B64-IV : "+base64.StdEncoding.EncodeToString(iv), Success)
+
+		var bits string
+		result := false
+		for !result {
+			Debug("Please enter the RSA-key-size (bits):", Normal)
+			fmt.Scanln(&bits)
+
+			f, err := strconv.ParseFloat(bits, 64)
+			if err != nil {
+				Debug("Enter a valid number !", Error)
+			} else {
+				val := math.Log2(f)
+				if val == math.Floor(val) {
+					result = true
+				} else {
+					result = false
+				}
+			}
+		}
+		i, _ := strconv.ParseInt(bits, 10, 16)
+		userConfig.KeyBits = int16(i)
+		Debug("Generating RSA-"+bits+" keys...", Task)
+		rsaKeys, err := rsa.GenerateKey(rand.Reader, int(i))
+		if err != nil {
+			Debug("Error when generating RSA keys", Error)
+			os.Exit(0)
+		}
+		Debug("The RSA-"+bits+" keys are generated", Success)
+		prKey, pbKey, err := GetPEMKey(rsaKeys)
+		if err != nil {
+			Debug("Error when converting RSA keys to string", Error)
+			os.Exit(0)
+		}
+		hashedPassword := sha256.Sum256([]byte(rawPassword))
+		aesKey := aes.AESKey{Key: hashedPassword[:], IV: userConfig.IV}
+		Debug("Encrypting the keys...", Task)
+		encryptedPrKey, err := aesKey.Encrypt([]byte(prKey))
+		if err != nil {
+			Debug("Error when encrypting Private Key", Error)
+			os.Exit(0)
+		}
+		encryptedPbKey, err := aesKey.Encrypt([]byte(pbKey))
+		if err != nil {
+			Debug("Error when encrypting Public Key", Error)
+			os.Exit(0)
+		}
+		Debug("The keys are encrypted", Success)
+		userConfig.PublicKeyLength = int16(len(encryptedPbKey))
+		userConfig.PublicKey = encryptedPbKey
+		userConfig.PrivateKeyLength = int16(len(encryptedPrKey))
+		userConfig.PrivateKey = encryptedPrKey
+		userConfig.IsEncrypted = false
+		key = xor.XorKey{Key: XorKeyBA}
+		userConfig.Header = string(key.Encrypt([]byte("CookieUSB")))
+		fmt.Println(userConfig)
+		convertedConfig, err := SerializeConfig(userConfig)
+		if err != nil {
+			Debug("Error when serializing Config", Error)
+			log.Fatal(err)
+			os.Exit(0)
+		}
+		err = ioutil.WriteFile(input+"/"+configName, convertedConfig, 0644)
+		if err != nil {
+			Debug("Error when creating the config file", Error)
+			os.Exit(0)
+		}
+		Debug("The config file is created !", Success)
+		Debug("Encrypting your files...", Task)
 	}
 }

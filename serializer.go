@@ -14,6 +14,12 @@ import (
 // XorKeyBA : the XorKey in byte array
 var XorKeyBA = []byte{0xCB, 0x80, 0xF8, 0x51, 0x3E, 0x05, 0x02, 0xC1, 0xEE, 0x42}
 
+func ReadBytes(f *os.File, length int, destination interface{}) error {
+	buffer := make([]byte, length)
+	f.Read(buffer)
+	return binary.Read(bytes.NewReader(buffer), binary.LittleEndian, destination)
+}
+
 // DeserializeAsFile : deserialize a file as the File structure
 func DeserializeAsFile(fileName string) (File, error) {
 	f, _ := os.Open(fileName)
