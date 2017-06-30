@@ -164,12 +164,12 @@ func main() {
 	if isEncrypted {
 		Debug("The USB is encrypted", Warning)
 		var answer string
-		for answer != "y" || answer != "n" {
+		for answer != "y" {
 			Debug("Do you want to decrypt it ? (y/n)", Normal)
 			fmt.Scanln(&answer)
-		}
-		if answer == "n" {
-			os.Exit(0)
+			if answer == "n" {
+				os.Exit(0)
+			}
 		}
 
 		var rawPassword string
