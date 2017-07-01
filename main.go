@@ -126,6 +126,10 @@ func main() {
 
 	Debug("Getting USB drives...", Task)
 	drives, err := Detect()
+	if len(drives) == 0 {
+		Debug("There is no USB devices", Error)
+		os.Exit(0)
+	}
 	if err == nil {
 		Debug(strconv.Itoa(len(drives))+" USB devices found:", Success)
 		for _, d := range drives {
@@ -168,7 +172,20 @@ func main() {
 		hashedPassword := sha256.Sum256([]byte(rawPassword))
 		aesKey := aes.AESKey{Key: hashedPassword[:], IV: config.IV}
 		DecryptConfig(config, aesKey)
-		// TODO : Decrypt all the files
+		Debug("Decrypting the RSA keys...", Task)
+		decryptedPrKey, err := aesKey.Decrypt(config.PrivateKey)
+		if err != nil {
+			Debug("Error when decrypting the Private Key", Error)
+		}
+		decryptedPbKey, err := aesKey.Decrypt(config.PublicKey)
+		if err != nil {
+			Debug("Error when decrypting the Public Key", Error)
+		}
+		config.PrivateKey = decryptedPrKey
+		config.PublicKey = decryptedPbKey
+		Debug("RSA keys are decrypted", Success)
+		Debug("Decrypting your files...", Task)
+		DecryptUSB(usbPath, config, rawPassword)
 	} else {
 		Debug("The USB is not encrypted", Warning)
 		var answer string
@@ -257,12 +274,6 @@ func main() {
 			os.Exit(0)
 		}
 		Debug("The keys are encrypted", Success)
-		/*generateLog := false
-		Debug("Do you want to generate a log file ? (y/n)", Normal)
-		fmt.Scanln(&input)
-		if input == "y" {
-			generateLog = true
-		}*/
 		userConfig.PublicKey = encryptedPbKey
 		userConfig.PrivateKey = encryptedPrKey
 		userConfig.IsEncrypted = true
@@ -281,7 +292,6 @@ func main() {
 		}
 		Debug("The config file is created !", Success)
 		var encryptionLevel byte = 255
-		fmt.Println(encryptionLevel)
 		for {
 			Debug("Please enter the encryption level (Normal=0/Hard=1/Extreme=2)", Normal)
 			var input string
@@ -323,6 +333,6 @@ func main() {
 		}
 		Debug("Encrypting your files...", Task)
 		rsaKeyPair := cryptoRSA.RSAKeys{Bits: int(userConfig.KeyBits), PrivateKey: rsaKeys, PublicKey: &rsaKeys.PublicKey}
-		EncryptUSB(usbPath, rsaKeyPair, encryptionLevel, compressionMethod, rawPassword)
+		EncryptUSB(usbPath, rsaKeyPair, encryptionLevel, compressionMethod, rawPassword, iv)
 	}
 }

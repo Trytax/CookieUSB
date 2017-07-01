@@ -13,13 +13,12 @@ import (
 var XorKeyBA = []byte{0xCB, 0x80, 0xF8, 0x51, 0x3E, 0x05, 0x02, 0xC1, 0xEE, 0x42}
 
 // DeserializeAsFile : deserialize a file as the File structure
-func DeserializeAsFile(fileName string) (File, error) {
-	b, _ := ioutil.ReadFile(fileName)
+func DeserializeAsFile(data []byte) (File, error) {
 	var file File
-	buffer := bytes.NewBuffer(b)
+	buffer := bytes.NewBuffer(data)
 	dec := gob.NewDecoder(buffer)
 	err := dec.Decode(&file)
-	if len(b) < 81 {
+	if len(data) < 81 {
 		return file, errors.New("Invalid file")
 	}
 	key := xor.XorKey{Key: XorKeyBA}
